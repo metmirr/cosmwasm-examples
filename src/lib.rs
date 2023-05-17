@@ -4,9 +4,15 @@ use cosmwasm_std::{
 
 mod contract;
 mod msg;
+mod state;
 
 #[entry_point]
-pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: Empty) -> StdResult<Response> {
+pub fn instantiate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: msg::InstantiateMsg,
+) -> StdResult<Response> {
     contract::instantiate(deps, env, info, msg)
 }
 
@@ -25,7 +31,7 @@ mod tests {
     use cosmwasm_std::Addr;
     use cw_multi_test::{App, ContractWrapper, Executor};
 
-    use crate::msg::{GreetResp, QueryMsg};
+    use crate::msg::{AdminListResp, GreetResp, InstantiateMsg, QueryMsg};
 
     use super::*;
 
@@ -38,12 +44,11 @@ mod tests {
         let code = ContractWrapper::new(execute, instantiate, query);
         // Store the object on the blockchain
         let code_id = app.store_code(Box::new(code));
-
         let addr = app
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &Empty {},
+                &msg::InstantiateMsg { admins: vec![] },
                 &[],
                 "Contract",
                 None,
@@ -57,6 +62,53 @@ mod tests {
             resp,
             GreetResp {
                 message: "Hello World".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn instantiation() {
+        let mut app = App::default();
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg { admins: vec![] },
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+        let resp: AdminListResp = app
+            .wrap()
+            .query_wasm_smart(addr, &QueryMsg::AdminList {})
+            .unwrap();
+        assert_eq!(resp, AdminListResp { admins: vec![] });
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                },
+                &[],
+                "Contract 2",
+                None,
+            )
+            .unwrap();
+        let resp: AdminListResp = app
+            .wrap()
+            .query_wasm_smart(addr, &QueryMsg::AdminList {})
+            .unwrap();
+        assert_eq!(
+            resp,
+            AdminListResp {
+                admins: vec![Addr::unchecked("admin1"), Addr::unchecked("admin2")],
             }
         );
     }
