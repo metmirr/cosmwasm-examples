@@ -187,7 +187,7 @@ mod tests {
         let resp = app
             .execute_contract(
                 Addr::unchecked("owner"),
-                addr,
+                addr.clone(),
                 &ExecuteMsg::AddMembers {
                     admins: vec!["user".to_owned()],
                 },
@@ -227,6 +227,22 @@ mod tests {
                 .unwrap()
                 .value,
             "user"
+        );
+        let resp = app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                addr,
+                &ExecuteMsg::AddMembers {
+                    admins: vec!["user".to_owned()],
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(
+            ContractError::AdminAlreadyExists {
+                admin: Addr::unchecked("user")
+            },
+            resp.downcast().unwrap()
         );
     }
 

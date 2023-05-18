@@ -9,4 +9,6 @@ pub enum ContractError {
     Unauthorized { sender: Addr },
     #[error("Payment error: {0}")]
     Payment(#[from] PaymentError),
+    #[error("{admin} is already in admin list")]
+    AdminAlreadyExists { admin: Addr },
 }

@@ -41,7 +41,7 @@ pub fn execute(
 }
 
 mod exec {
-    use cosmwasm_std::{coins, BankMsg, DepsMut, Event, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{coins, Addr, BankMsg, DepsMut, Event, MessageInfo, Response, StdResult};
 
     use crate::error::ContractError;
     use crate::state::{ADMINS, DONATION_DENOM};
@@ -56,6 +56,12 @@ mod exec {
             return Err(ContractError::Unauthorized {
                 sender: info.sender,
             });
+        }
+        for admin in admins.iter() {
+            let admin = Addr::unchecked(admin.clone());
+            if current_admins.contains(&admin) {
+                return Err(ContractError::AdminAlreadyExists { admin });
+            }
         }
         let events = admins
             .iter()
