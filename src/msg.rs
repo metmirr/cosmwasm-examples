@@ -15,6 +15,7 @@ pub enum QueryMsg {
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 pub struct InstantiateMsg {
     pub admins: Vec<String>,
+    pub donation_denom: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
@@ -26,4 +27,5 @@ pub struct AdminListResp {
 pub enum ExecuteMsg {
     AddMembers { admins: Vec<String> },
     Leave {},
+    Donate {},
 }

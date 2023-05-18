@@ -34,7 +34,7 @@ pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{coins, Addr};
     use cw_multi_test::{App, ContractWrapper, Executor};
 
     use crate::msg::{AdminListResp, GreetResp, InstantiateMsg, QueryMsg};
@@ -54,7 +54,10 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &msg::InstantiateMsg { admins: vec![] },
+                &msg::InstantiateMsg {
+                    admins: vec![],
+                    donation_denom: "cosmos".to_owned(),
+                },
                 &[],
                 "Contract",
                 None,
@@ -83,7 +86,10 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &InstantiateMsg { admins: vec![] },
+                &InstantiateMsg {
+                    admins: vec![],
+                    donation_denom: "cosmos".to_owned(),
+                },
                 &[],
                 "Contract",
                 None,
@@ -101,6 +107,7 @@ mod tests {
                 Addr::unchecked("owner"),
                 &InstantiateMsg {
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    donation_denom: "cosmos".to_owned(),
                 },
                 &[],
                 "Contract 2",
@@ -130,7 +137,10 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &InstantiateMsg { admins: vec![] },
+                &InstantiateMsg {
+                    admins: vec![],
+                    donation_denom: "cosmos".to_owned(),
+                },
                 &[],
                 "Contract",
                 None,
@@ -167,6 +177,7 @@ mod tests {
                 Addr::unchecked("owner"),
                 &InstantiateMsg {
                     admins: vec!["owner".to_owned()],
+                    donation_denom: "cosmos".to_owned(),
                 },
                 &[],
                 "Contract",
@@ -216,6 +227,49 @@ mod tests {
                 .unwrap()
                 .value,
             "user"
+        );
+    }
+
+    #[test]
+    fn donations() {
+        let funds = coins(5, "cosmos");
+        let mut app = App::new(|router, _, storage| {
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked("user"), funds.clone())
+                .unwrap();
+        });
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    donation_denom: "cosmos".to_string(),
+                },
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            Addr::unchecked("user"),
+            addr,
+            &ExecuteMsg::Donate {},
+            &funds,
+        )
+        .unwrap();
+        assert_eq!(
+            app.wrap()
+                .query_balance("user", "cosmos")
+                .unwrap()
+                .amount
+                .u128(),
+            0
         );
     }
 }

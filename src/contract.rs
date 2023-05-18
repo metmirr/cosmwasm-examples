@@ -2,7 +2,7 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
-use crate::state::ADMINS;
+use crate::state::{ADMINS, DONATION_DENOM};
 
 pub fn instantiate(
     deps: DepsMut,
@@ -16,6 +16,8 @@ pub fn instantiate(
         .map(|addr| deps.api.addr_validate(&addr))
         .collect();
     ADMINS.save(deps.storage, &admins?)?;
+    DONATION_DENOM.save(deps.storage, &msg.donation_denom)?;
+
     Ok(Response::new())
 }
 
@@ -34,14 +36,15 @@ pub fn execute(
     match msg {
         ExecuteMsg::AddMembers { admins } => exec::add_members(deps, info, admins),
         ExecuteMsg::Leave {} => exec::leave(deps, info).map_err(Into::into),
+        ExecuteMsg::Donate {} => exec::donate(deps, info),
     }
 }
 
 mod exec {
-    use cosmwasm_std::{DepsMut, Event, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{coins, BankMsg, DepsMut, Event, MessageInfo, Response, StdResult};
 
     use crate::error::ContractError;
-    use crate::state::ADMINS;
+    use crate::state::{ADMINS, DONATION_DENOM};
 
     pub fn add_members(
         deps: DepsMut,
@@ -80,6 +83,25 @@ mod exec {
             Ok(admins)
         })?;
         Ok(Response::new())
+    }
+
+    pub fn donate(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+        let denom = DONATION_DENOM.load(deps.storage)?;
+        let admins = ADMINS.load(deps.storage)?;
+
+        let amount = cw_utils::must_pay(&info, &denom)?.u128();
+        let donation_per_admin = amount / (admins.len() as u128);
+
+        let messages = admins.into_iter().map(|admin| BankMsg::Send {
+            to_address: admin.to_string(),
+            amount: coins(donation_per_admin, &denom),
+        });
+        let resp = Response::new()
+            .add_messages(messages)
+            .add_attribute("action", "donate")
+            .add_attribute("amount", amount.to_string())
+            .add_attribute("per_admin", donation_per_admin.to_string());
+        Ok(resp)
     }
 }
 
