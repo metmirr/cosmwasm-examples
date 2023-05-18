@@ -1,6 +1,5 @@
-use cosmwasm_std::{
-    entry_point, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
-};
+use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use msg::ExecuteMsg;
 
 mod contract;
 mod msg;
@@ -17,13 +16,18 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
-    contract::query(deps, env, msg)
+pub fn execute(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> StdResult<Response> {
+    contract::execute(deps, info, msg)
 }
 
-#[allow(dead_code)]
-pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, _msg: Empty) -> StdResult<Response> {
-    unimplemented!()
+#[entry_point]
+pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
+    contract::query(deps, env, msg)
 }
 
 #[cfg(test)]

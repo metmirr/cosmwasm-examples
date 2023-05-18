@@ -21,3 +21,9 @@ pub struct InstantiateMsg {
 pub struct AdminListResp {
     pub admins: Vec<Addr>,
 }
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
+pub enum ExecuteMsg {
+    AddMembers { admins: Vec<String> },
+    Leave {},
+}
