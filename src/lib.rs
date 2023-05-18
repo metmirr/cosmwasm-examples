@@ -1,7 +1,9 @@
 use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use error::ContractError;
 use msg::ExecuteMsg;
 
 mod contract;
+mod error;
 mod msg;
 mod state;
 
@@ -21,7 +23,7 @@ pub fn execute(
     _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     contract::execute(deps, info, msg)
 }
 
@@ -114,6 +116,41 @@ mod tests {
             AdminListResp {
                 admins: vec![Addr::unchecked("admin1"), Addr::unchecked("admin2")],
             }
+        );
+    }
+
+    #[test]
+    fn unauthorized() {
+        let mut app = App::default();
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg { admins: vec![] },
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+        let err = app
+            .execute_contract(
+                Addr::unchecked("user"),
+                addr,
+                &ExecuteMsg::AddMembers {
+                    admins: vec!["user".to_owned()],
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert_eq!(
+            ContractError::Unauthorized {
+                sender: Addr::unchecked("user")
+            },
+            err.downcast().unwrap()
         );
     }
 }

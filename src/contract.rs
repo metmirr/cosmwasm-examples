@@ -1,5 +1,6 @@
 use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
+use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 use crate::state::ADMINS;
 
@@ -25,26 +26,33 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-pub fn execute(deps: DepsMut, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::AddMembers { admins } => exec::add_members(deps, info, admins),
-        ExecuteMsg::Leave {} => exec::leave(deps, info),
+        ExecuteMsg::Leave {} => exec::leave(deps, info).map_err(Into::into),
     }
 }
 
 mod exec {
-    use cosmwasm_std::{DepsMut, MessageInfo, Response, StdError, StdResult};
+    use cosmwasm_std::{DepsMut, MessageInfo, Response, StdResult};
 
+    use crate::error::ContractError;
     use crate::state::ADMINS;
 
     pub fn add_members(
         deps: DepsMut,
         info: MessageInfo,
         admins: Vec<String>,
-    ) -> StdResult<Response> {
+    ) -> Result<Response, ContractError> {
         let mut current_admins = ADMINS.load(deps.storage)?;
         if !current_admins.contains(&info.sender) {
-            return Err(StdError::generic_err("Not admin"));
+            return Err(ContractError::Unauthorized {
+                sender: info.sender,
+            });
         }
         let admins: StdResult<Vec<_>> = admins
             .into_iter()
@@ -56,7 +64,7 @@ mod exec {
         Ok(Response::new())
     }
 
-    pub fn leave(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+    pub fn leave(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
         ADMINS.update(deps.storage, move |admins| -> StdResult<_> {
             let admins = admins
                 .into_iter()
