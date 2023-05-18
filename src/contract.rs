@@ -38,7 +38,7 @@ pub fn execute(
 }
 
 mod exec {
-    use cosmwasm_std::{DepsMut, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{DepsMut, Event, MessageInfo, Response, StdResult};
 
     use crate::error::ContractError;
     use crate::state::ADMINS;
@@ -54,6 +54,13 @@ mod exec {
                 sender: info.sender,
             });
         }
+        let events = admins
+            .iter()
+            .map(|admin| Event::new("admin_added").add_attribute("addr", admin));
+        let resp = Response::new()
+            .add_events(events)
+            .add_attribute("action", "add_members")
+            .add_attribute("added_count", admins.len().to_string());
         let admins: StdResult<Vec<_>> = admins
             .into_iter()
             .map(|addr| deps.api.addr_validate(&addr))
@@ -61,7 +68,7 @@ mod exec {
         current_admins.append(&mut admins?);
         ADMINS.save(deps.storage, &current_admins)?;
 
-        Ok(Response::new())
+        Ok(resp)
     }
 
     pub fn leave(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {

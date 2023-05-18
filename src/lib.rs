@@ -153,4 +153,69 @@ mod tests {
             err.downcast().unwrap()
         );
     }
+
+    #[test]
+    fn add_members() {
+        let mut app = App::default();
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    admins: vec!["owner".to_owned()],
+                },
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+        let resp = app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                addr,
+                &ExecuteMsg::AddMembers {
+                    admins: vec!["user".to_owned()],
+                },
+                &[],
+            )
+            .unwrap();
+        let wasm_event = resp.events.iter().find(|ev| ev.ty == "wasm").unwrap();
+        assert_eq!(
+            wasm_event
+                .attributes
+                .iter()
+                .find(|attr| attr.key == "action")
+                .unwrap()
+                .value,
+            "add_members"
+        );
+        assert_eq!(
+            wasm_event
+                .attributes
+                .iter()
+                .find(|attr| attr.key == "added_count")
+                .unwrap()
+                .value,
+            "1"
+        );
+        let admin_added: Vec<_> = resp
+            .events
+            .iter()
+            .filter(|ev| ev.ty == "wasm-admin_added")
+            .collect();
+        assert_eq!(admin_added.len(), 1);
+        assert_eq!(
+            admin_added[0]
+                .attributes
+                .iter()
+                .find(|attr| attr.key == "addr")
+                .unwrap()
+                .value,
+            "user"
+        );
+    }
 }
