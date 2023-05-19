@@ -1,2 +1,5 @@
 /target
 /Cargo.lock
+
+# cosmwasm related files
+/schema
